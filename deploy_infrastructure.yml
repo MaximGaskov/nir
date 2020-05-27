@@ -1,0 +1,55 @@
+---
+- name: Create openstack infrastructure
+  become: yes
+  hosts: openstack_node
+  gather_facts: no
+  tasks:
+    - name: Create internal network
+      os_network:
+        state: present
+        auth: "{{ auth_credentials }}"
+        name: int_net
+
+    - name: Create a subnet for int_net
+      os_subnet:
+        state: present
+        auth: "{{ auth_credentials }}"
+        network_name: int_net
+        name: int_subnet
+        cidr: 192.168.0.0/24
+        enable_dhcp: yes
+        allocation_pool_start: 192.168.0.100
+        allocation_pool_end: 192.168.0.200
+
+    - name: Create a router
+      os_router:
+        state: present
+        auth: "{{ auth_credentials }}"
+        name: router00
+        enable_snat: yes
+        network: public
+        interfaces:
+          - int_subnet
+
+    - os_keypair:
+        state: present
+        auth: "{{ auth_credentials }}"
+        name: default_key
+        public_key_file: /home/vagrant/.ssh/openstack_id_rsa.pub
+
+    - name: Create server instances
+      os_server:
+        state: present
+        auth: "{{ auth_credentials }}"
+        name: "{{ item }}"
+        flavor: m1.micro
+        image: cirros-0.4.0-x86_64-disk 
+        security_groups:
+          - default
+        key_name: default_key
+        network: int_net
+      loop: 
+        - server1
+        - server2
+        - server3
+
